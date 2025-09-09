@@ -1,0 +1,4 @@
+transcoded/*
+!transcoded/.gitkeep
+uploads/*
+!uploads/.gitkeep
