@@ -10,6 +10,7 @@ const PORT = 3000
 
 const jobs = new Map() 
 
+// Middleware video checking
 const upload = multer({
   dest: 'uploads/', // Temporary local storage folder
   limits: {
@@ -27,6 +28,7 @@ const upload = multer({
   }
 });
 
+// Post endpoint
 app.post('/api/upload', upload.single('video'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({error: 'No video file provided'});
@@ -61,6 +63,37 @@ app.post('/api/upload', upload.single('video'), async (req, res) => {
     });
 });
 
+// Get job details endpoint
+app.get('/api/jobs/:id', (req, res) => {
+    const job = jobs.get(req.params.id);
+
+    if (!job) {
+        return res.status(400).json({error: 'Job not found'});
+    }
+
+    const {input, ...safeJob} = job;
+
+    res.json(safeJob);
+})
+
+// Get status check endpoint
+app.get('/api/jobs/:id/status', (req, res) => {
+    const job = jobs.get(req.params.id);
+
+    if (!job) {
+        return res.status(400).json(({error: 'Job not found'}))
+    }
+
+    res.json({
+        id: job.id,
+        status: job.status,
+        progress: job.progress,
+        outputs: job.status === 'completed' ? Object.keys(job.outputs) : []
+    });
+});
+
+
+// Transcoding ffmpeg function
 async function transcodeVideo(jobID, inputPath) {
     const job = jobs.get(jobID);
 
@@ -122,6 +155,9 @@ async function transcodeVideo(jobID, inputPath) {
 
     console.log(`Job ${jobID} fully completed`);
 }
+
+
+
 
 app.listen(PORT, () => {
     console.log(`StreamForge running on http://localhost:${PORT}`)
