@@ -1,6 +1,8 @@
 # StreamForge
 ## Distributed Video Processing Pipeline
 
+@context/teaching_context.md
+
 ### Executive Summary
 StreamForge is a scalable video transcoding system that demonstrates enterprise-level video processing architecture. The system accepts video uploads, processes them into multiple quality formats, and serves them efficiently to end users.
 
