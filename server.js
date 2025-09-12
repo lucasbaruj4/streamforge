@@ -1,14 +1,15 @@
 import express from 'express'
+import { createReadStream } from 'fs'
 import multer from 'multer'
 import ffmpeg from 'fluent-ffmpeg'
 import path from 'path'
 import fs from 'fs/promises'
-import { v4 as uuidv4} from 'uuid'
+import { v4 as uuidv4 } from 'uuid'
 
 const app = express()
-const PORT = 3000 
+const PORT = 3000
 
-const jobs = new Map() 
+const jobs = new Map()
 
 // Middleware video checking
 const upload = multer({
@@ -20,148 +21,212 @@ const upload = multer({
     const allowed = ['.mp4', '.avi', '.mov', '.webm'];
     const ext = path.extname(file.originalname).toLowerCase();
 
-    if (allowed.includes(ext)){
-        cb(null, true);
+    if (allowed.includes(ext)) {
+      cb(null, true);
     } else {
-        cb(new Error('Invalid type file'), false);
+      cb(new Error('Invalid type file'), false);
     }
   }
 });
 
 // Post endpoint
 app.post('/api/upload', upload.single('video'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({error: 'No video file provided'});
+  if (!req.file) {
+    return res.status(400).json({ error: 'No video file provided' });
+  }
+
+  const jobID = uuidv4();
+
+  jobs.set(jobID, {
+    id: jobID,
+    status: 'pending',
+    progress: 0,
+    input: req.file.path,
+    originalname: req.file.originalname,
+    totalQualities: 0,
+    completedQualities: 0,
+    outputs: {}
+  });
+
+
+  transcodeVideo(jobID, req.file.path).catch(err => {
+    const job = jobs.get(jobID);
+    if (job) {
+      job.status = 'failed';
+      job.error = err.message;
     }
+  });
 
-    const jobID = uuidv4();
-
-    jobs.set(jobID, {
-        id: jobID,
-        status: 'pending', 
-        progress: 0,
-        input: req.file.path, 
-        originalname: req.file.originalname,
-        totalQualities: 0,
-        completedQualities: 0,
-        outputs: {}
-    });
-
-    
-    transcodeVideo(jobID, req.file.path).catch(err => {
-        const job = jobs.get(jobID);
-        if (job) {
-            job.status = 'failed';
-            job.error = err.message;
-        }
-    });
-
-    res.json({
-        jobID,
-        message: 'Video uploaded successfully', 
-        status: 'pending'
-    });
+  res.json({
+    jobID,
+    message: 'Video uploaded successfully',
+    status: 'pending'
+  });
 });
 
 // Get job details endpoint
 app.get('/api/jobs/:id', (req, res) => {
-    const job = jobs.get(req.params.id);
+  const job = jobs.get(req.params.id);
 
-    if (!job) {
-        return res.status(400).json({error: 'Job not found'});
-    }
+  if (!job) {
+    return res.status(400).json({ error: 'Job not found' });
+  }
 
-    const {input, ...safeJob} = job;
+  const { input, ...safeJob } = job;
 
-    res.json(safeJob);
+  res.json(safeJob);
 })
 
 // Get status check endpoint
 app.get('/api/jobs/:id/status', (req, res) => {
-    const job = jobs.get(req.params.id);
+  const job = jobs.get(req.params.id);
 
-    if (!job) {
-        return res.status(400).json(({error: 'Job not found'}))
-    }
+  if (!job) {
+    return res.status(400).json(({ error: 'Job not found' }))
+  }
 
-    res.json({
-        id: job.id,
-        status: job.status,
-        progress: job.progress,
-        outputs: job.status === 'completed' ? Object.keys(job.outputs) : []
-    });
+  res.json({
+    id: job.id,
+    status: job.status,
+    progress: job.progress,
+    outputs: job.status === 'completed' ? Object.keys(job.outputs) : []
+  });
 });
 
+// Stream video endpoint with range support
+app.get('/api/stream/:id/:quality', async (req, res) => {
+  const { id, quality } = req.params
+  const job = jobs.get(id)
+
+  if (!job || job.status !== 'completed') {
+    return res.status(404).json({ error: 'Video not found' });
+  }
+
+  const videoPath = job.outputs[quality];
+  if (!videoPath) {
+    return res.status(404).json({ error: 'Quality not available' });
+  }
+
+  try {
+    const stat = await fs.stat(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+
+      const stream = createReadStream(videoPath, { start, end });
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4'
+      });
+
+      stream.pipe(res);
+
+      stream.on('error', (error) => {
+        console.error('Stream error: ', error);
+        res.end();
+      });
+
+    } else {
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4'
+      });
+
+      const stream = createReadStream(videoPath).pipe(res);
+
+      stream.on('error', (error) => {
+        console.error('Stream error: ', error);
+        res.end();
+      });
+    }
+  } catch (error) {
+    console.error('Error before streaming: ', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Streaming Error' });
+    } else {
+      res.end();
+    }
+  }
+});
 
 // Transcoding ffmpeg function
 async function transcodeVideo(jobID, inputPath) {
-    const job = jobs.get(jobID);
+  const job = jobs.get(jobID);
 
-    const outputDir = path.join('transcoded', jobID);
-    await fs.mkdir(outputDir, {recursive: true});
+  const outputDir = path.join('transcoded', jobID);
+  await fs.mkdir(outputDir, { recursive: true });
 
-    const qualities = [
-        { name: '1080p', width: 1920, height: 1080, bitrate: '5000k'},
-        { name: '720p', width: 1280, height: 720, bitrate: '2500k'},
-        { name: '360p', width: 640, height: 360, bitrate: '1000k'}
+  const qualities = [
+    { name: '1080p', width: 1920, height: 1080, bitrate: '5000k' },
+    { name: '720p', width: 1280, height: 720, bitrate: '2500k' },
+    { name: '360p', width: 640, height: 360, bitrate: '1000k' }
 
-    ];
+  ];
 
-    job.status = 'processing';
-    job.totalQualities = qualities.length;
-    job.completedQualities = 0;
+  job.status = 'processing';
+  job.totalQualities = qualities.length;
+  job.completedQualities = 0;
 
-    for (const quality of qualities) {
-        const outputPath = path.join(outputDir, `${quality.name}.mp4`);
+  for (const quality of qualities) {
+    const outputPath = path.join(outputDir, `${quality.name}.mp4`);
 
-        await new Promise((resolve, reject) => {
-            ffmpeg(inputPath)
-            .outputOptions([
-                `-vf scale=${quality.width}:${quality.height}`,
-                `-b:v ${quality.bitrate}`,
-                `-b:a 128k`,
-                `-c:v libx264`,
-                `-c:a aac`,
-                `-preset medium`,
-                `-movflags +faststart`
-            ])
-            .on('progress', (progress) => {
-                const qualityProgress = job.completedQualities * 100;
-                const currentProgress = progress.percent || 0;
-                job.progress = Math.round(
-                    (qualityProgress + currentProgress) / job.totalQualities
-                );
-                console.log(`Job ${jobID}: ${job.progress}% complete`)
-            })
-            .on('end', () => {
-                job.completedQualities++;
-                job.outputs[quality.name] = outputPath;
-                console.log(`${quality.name} complete for job ${jobID}`);
-                resolve();
-            })
-            .on('error', (err) => {
-                console.error(`Error transcoding quality: ${quality.name}.`, err)
-                reject(err)
-            })
-            .save(outputPath)
+    await new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .outputOptions([
+          `-vf scale=${quality.width}:${quality.height}`,
+          `-b:v ${quality.bitrate}`,
+          `-b:a 128k`,
+          `-c:v libx264`,
+          `-c:a aac`,
+          `-preset medium`,
+          `-movflags +faststart`
+        ])
+        .on('progress', (progress) => {
+          const qualityProgress = job.completedQualities * 100;
+          const currentProgress = progress.percent || 0;
+          job.progress = Math.round(
+            (qualityProgress + currentProgress) / job.totalQualities
+          );
+          console.log(`Job ${jobID}: ${job.progress}% complete`)
         })
+        .on('end', () => {
+          job.completedQualities++;
+          job.outputs[quality.name] = outputPath;
+          console.log(`${quality.name} complete for job ${jobID}`);
+          resolve();
+        })
+        .on('error', (err) => {
+          console.error(`Error transcoding quality: ${quality.name}.`, err)
+          reject(err)
+        })
+        .save(outputPath)
+    })
 
-    }
+  }
 
-    job.status = 'completed';
-    job.progress = 100;
+  job.status = 'completed';
+  job.progress = 100;
 
-    await fs.unlink(inputPath);
+  await fs.unlink(inputPath);
 
-    console.log(`Job ${jobID} fully completed`);
+  console.log(`Job ${jobID} fully completed`);
 }
 
 
 
 
+
 app.listen(PORT, () => {
-    console.log(`StreamForge running on http://localhost:${PORT}`)
+  console.log(`StreamForge running on http://localhost:${PORT}`)
 });
 
 
-    
+
