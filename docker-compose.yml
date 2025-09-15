@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine  # Alpine is smaller, perfect for development
+    container_name: streamforge-redis
+    ports:
+      - "6379:6379"  # Maps container port to your localhost
+    volumes:
+      - redis-data:/data  # Persists data between restarts
+    command: redis-server --appendonly yes  # Enables persistence
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:  # Named volume for Redis data persistence
