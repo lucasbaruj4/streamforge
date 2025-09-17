@@ -81,6 +81,80 @@ app.get('/api/jobs/:id/status', async (req, res) => {
   })
 });
 
+// Real-time progress updates via Server-Sent Events
+// Streams live updates as video processes - no polling needed
+app.get('/api/jobs/:id/progress', async (req, res) => {
+  const { id } = req.params;
+
+  // Verify job exists before setting up SSE
+  const job = await videoQueue.getJob(id);
+  if (!job) {
+    return res.status(404).json({ error: "Job not found" });
+  }
+
+  // Configure SSE headers for real-time streaming
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no' // Disable proxy buffering
+  });
+
+  // Send initial job state immediately
+  const initialState = await job.getState();
+  res.write(`data: ${JSON.stringify({
+    id: job.id,
+    status: initialState,
+    progress: job.progress || 0
+  })}\n\n`);
+
+  // TODO(human): Implement the event listener logic for progress updates
+  // This should listen to queueEvents for 'progress', 'completed', and 'failed' events
+  // Filter events by jobId === id, and send appropriate SSE messages
+  // Remember to clean up listeners when client disconnects
+
+  // Send progress updates on worker events
+  queueEvents.on('progress', (eventData) => {
+    if (eventData.jobId === id) {
+      res.write(`data: ${JSON.stringify({
+        id: id,
+        progress: eventData.progress
+      })}\n\n`);
+    }
+  });
+
+  queueEvents.on('failed', (eventData) => {
+    if (eventData.jobId === id) {
+      res.write(`data: ${JSON.stringify({
+        id: id,
+        failureReason: eventData.failedReason,
+        status: 'Failed'
+      })}\n\n`);
+    }
+  });
+
+  queueEvents.on('completed', (eventData) => {
+    if (eventData.jobId === id) {
+      res.write(`data: ${JSON.stringify({
+        id: id,
+        returnValue: eventData.returnvalue,
+        status: 'Completed'
+      })}\n\n`);
+    }
+  });
+
+  // Keep connection alive with periodic heartbeat
+  const heartbeat = setInterval(() => {
+    res.write(':heartbeat\n\n');
+  }, 30000);
+
+  // Handle client disconnect
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    console.log(`SSE client disconnected for job ${id}`);
+    // Cleanup will happen in your implementation above
+  });
+});
 
 // Stream video endpoint - this stays mostly the same
 app.get('/api/stream/:id/:quality', async (req, res) => {
@@ -118,7 +192,7 @@ app.get('/api/stream/:id/:quality', async (req, res) => {
       const stream = createReadStream(videoPath, { start, end });
 
       res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Content-Range': `bytes ${start} -${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunksize,
         'Content-Type': 'video/mp4'
