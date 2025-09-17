@@ -39,7 +39,6 @@ async function processVideoJob(job) {
             (qualityProgress + currentProgress) / qualities.length
           );
           job.updateProgress(TotalProgress);
-          console.log(`Job ${job.id}: ${TotalProgress}% complete`)
         })
         .on('end', () => {
           completedQualities++;

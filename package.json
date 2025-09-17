@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "node --watch server-async.js"
+    "dev": "node --watch server-async.js",
+    "devall": "node --watch server-async.js & node --watch worker.js & wait"
   },
   "keywords": [],
   "author": "",
