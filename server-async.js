@@ -3,7 +3,7 @@ import { createReadStream } from 'fs'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs/promises'
-import { videoQueue, queueEvents } from './lib/queue.js'
+import { videoQueue, queueEvents, connection } from './lib/queue.js'
 
 const app = express()
 const PORT = 3000
@@ -166,6 +166,45 @@ app.get('/api/jobs/:id/progress', async (req, res) => {
     console.log(`SSE client disconnected for job ${id}`);
     cleanup();
   });
+});
+
+// Health check endpoint - monitors system status
+app.get('/api/health', async (req, res) => {
+  try {
+    // Check Redis Connection Health
+    const con_status = connection.status;
+    if (con_status !== 'ready') {
+      return res.status(503).json('Server not connected to Redis');
+    }
+
+    // Get all job counts
+    const jobs_count = await videoQueue.getJobCounts();
+
+    //Get all worker counts
+    const jobs_info = await videoQueue.getWorkers();
+
+    // 503 if there aren't any workers
+    if (jobs_info.length === 0) {
+      return res.status(503).json({
+        status: 'Unhealthy',
+        error: 'No workers available'
+      });
+    }
+
+    res.status(200).json({
+      status: 'healthy',
+      metrics: {
+        jobs_count: jobs_count,
+        jobs_info: jobs_info
+      }
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message
+    });
+  }
 });
 
 // Stream video endpoint - this stays mostly the same
