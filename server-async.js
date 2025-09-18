@@ -108,40 +108,52 @@ app.get('/api/jobs/:id/progress', async (req, res) => {
     progress: job.progress || 0
   })}\n\n`);
 
-  // TODO(human): Implement the event listener logic for progress updates
-  // This should listen to queueEvents for 'progress', 'completed', and 'failed' events
-  // Filter events by jobId === id, and send appropriate SSE messages
-  // Remember to clean up listeners when client disconnects
+  // Cleanups
+  const cleanup = () => {
+    queueEvents.off('progress', progressListener);
+    queueEvents.off('failed', failedListener);
+    queueEvents.off('completed', completedListener);
+    res.end();
+  };
 
-  // Send progress updates on worker events
-  queueEvents.on('progress', (eventData) => {
+  // Listener objects
+  const progressListener = (eventData) => {
     if (eventData.jobId === id) {
       res.write(`data: ${JSON.stringify({
         id: id,
-        progress: eventData.progress
-      })}\n\n`);
+        progress: eventData.data
+      }
+      )}\n\n`);
     }
-  });
+  };
 
-  queueEvents.on('failed', (eventData) => {
+  const failedListener = (eventData) => {
     if (eventData.jobId === id) {
       res.write(`data: ${JSON.stringify({
         id: id,
-        failureReason: eventData.failedReason,
-        status: 'Failed'
-      })}\n\n`);
+        failedReason: eventData.failedReason,
+        message: 'Job Failed'
+      }
+      )}\n\n`);
+      cleanup();
     }
-  });
+  };
 
-  queueEvents.on('completed', (eventData) => {
+  const completedListener = (eventData) => {
     if (eventData.jobId === id) {
       res.write(`data: ${JSON.stringify({
         id: id,
-        returnValue: eventData.returnvalue,
-        status: 'Completed'
-      })}\n\n`);
+        returnvalue: eventData.returnvalue,
+        message: 'Job Completed'
+      }
+      )}\n\n`);
+      cleanup();
     }
-  });
+  };
+
+  queueEvents.on('progress', progressListener);
+  queueEvents.on('failed', failedListener);
+  queueEvents.on('completed', completedListener);
 
   // Keep connection alive with periodic heartbeat
   const heartbeat = setInterval(() => {
@@ -152,7 +164,7 @@ app.get('/api/jobs/:id/progress', async (req, res) => {
   req.on('close', () => {
     clearInterval(heartbeat);
     console.log(`SSE client disconnected for job ${id}`);
-    // Cleanup will happen in your implementation above
+    cleanup();
   });
 });
 

@@ -22,7 +22,7 @@ async function processVideoJob(job) {
     const outputPath = path.join(outputDir, `${quality.name}.mp4`);
 
     await new Promise((resolve, reject) => {
-      ffmpeg(inputPath)
+      const command = ffmpeg(inputPath)
         .outputOptions([
           `-vf scale=${quality.width}:${quality.height}`,
           `-b:v ${quality.bitrate}`,
@@ -48,9 +48,10 @@ async function processVideoJob(job) {
         })
         .on('error', (err) => {
           console.error(`Error transcoding quality: ${quality.name}.`, err)
+          command.kill('SIGKILL');
           reject(err)
         })
-        .save(outputPath)
+        .save(outputPath);
     })
 
   }
@@ -64,23 +65,6 @@ async function processVideoJob(job) {
 const worker = new Worker('video-transcoding', processVideoJob, {
   connection,
   concurrency: 2,  // Process 2 videos at once
-});
-
-// Event listeners for monitoring
-worker.on('completed', (job) => {
-  console.log(`Job ${job.id} completed successfully`);
-});
-
-worker.on('failed', (job, err) => {
-  console.error(`Job ${job.id} failed:`, err.message);
-});
-
-worker.on('active', (job) => {
-  console.log(`Started processing job ${job.id}`);
-});
-
-worker.on('progress', (job, progress) => {
-  console.log(`Job ${job.id} is ${progress}% complete`);
 });
 
 // Graceful shutdown
