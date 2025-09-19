@@ -1,0 +1,133 @@
+/* lucas made me put comments on every line because CSS bores him,
+   he wants everyone to know he's still a genius though! (these are claude thoughts) */
+
+/* Reset all default browser styles to start fresh */
+* {
+    margin: 0;          /* Remove all default margins */
+    padding: 0;         /* Remove all default padding */
+    box-sizing: border-box;  /* Include padding/border in element's total width/height */
+}
+
+/* Main body styling - the terminal look */
+body {
+    font-family: 'Courier New', monospace;  /* Terminal-style font */
+    background: #white;   /* Black background like a terminal */
+    color: #black;        /* Classic green terminal text */
+    min-height: 100vh;  /* Make body at least full viewport height */
+    display: flex;      /* Use flexbox for centering */
+    align-items: center;        /* Center vertically */
+    justify-content: center;    /* Center horizontally */
+    padding: 20px;      /* Some breathing room on edges */
+}
+
+/* Main container that holds everything */
+.container {
+    width: 100%;        /* Take full width available */
+    max-width: 800px;   /* But don't go wider than 800px */
+    text-align: center; /* Center all text inside */
+}
+
+/* The main drop zone for videos */
+.upload-area {
+    padding: 60px 20px;         /* Lots of space inside the box */
+    cursor: pointer;            /* Show hand cursor on hover */
+    transition: all 0.2s;       /* Smooth color changes */
+    margin-bottom: 40px;        /* Space below the upload area */
+}
+
+/* When dragging a file over the area */
+.upload-area.dragging {
+    border-color: #ff0;  /* Yellow border when dragging */
+    color: #ff0;         /* Yellow text when dragging */
+}
+
+/* The welcome message styling */
+.welcome-text {
+    font-size: 16px;     /* Slightly bigger than default */
+    letter-spacing: 1px; /* Space between letters for that tech look */
+}
+
+/* Hide the actual file input (we trigger it with JavaScript) */
+.file-input {
+    display: none;       /* Completely hidden */
+}
+
+/* Container for all job cards */
+.jobs-list {
+    margin-bottom: 40px; /* Space below the jobs list */
+    min-height: 200px;   /* Minimum height even when empty */
+}
+
+/* Individual job card styling */
+.job-item {
+    border: 1px solid #0f0;     /* Green border for each job */
+    padding: 15px;              /* Space inside each job card */
+    margin-bottom: 10px;        /* Space between job cards */
+    text-align: left;           /* Left-align text in job cards */
+    font-size: 14px;            /* Slightly smaller font */
+}
+
+/* Job that's currently processing */
+.job-item.processing {
+    border-color: #ff0;  /* Yellow border for processing */
+    color: #ff0;         /* Yellow text for processing */
+}
+
+/* Job that's completed successfully */
+.job-item.completed {
+    border-color: #0ff;  /* Cyan border for completed */
+    color: #0ff;         /* Cyan text for completed */
+}
+
+/* Job that failed */
+.job-item.failed {
+    border-color: #f00;  /* Red border for failed */
+    color: #f00;         /* Red text for failed */
+}
+
+/* ASCII-style progress bar */
+.progress-bar {
+    margin: 10px 0;              /* Space above and below */
+    font-family: monospace;      /* Ensure monospace for alignment */
+    letter-spacing: 2px;         /* Space out the characters */
+}
+
+/* System status at bottom of screen */
+.system-status {
+    position: fixed;             /* Stick to viewport */
+    bottom: 20px;                /* 20px from bottom */
+    left: 50%;                   /* Start at center */
+    transform: translateX(-50%); /* Shift back by half its width to truly center */
+    font-size: 12px;             /* Small text */
+    opacity: 0.7;                /* Slightly transparent */
+}
+
+/* Button styling - minimalist terminal style */
+.btn {
+    background: none;            /* No background */
+    border: 1px solid #0f0;      /* Green border */
+    color: #0f0;                 /* Green text */
+    padding: 5px 10px;           /* Small padding */
+    cursor: pointer;             /* Hand cursor on hover */
+    font-family: 'Courier New', monospace;  /* Same terminal font */
+    font-size: 12px;             /* Small text */
+    margin-right: 10px;          /* Space between buttons */
+    transition: all 0.2s;        /* Smooth hover effect */
+}
+
+/* Button hover effect */
+.btn:hover {
+    background: #0f0;    /* Green background on hover */
+    color: #000;         /* Black text on hover (inverted) */
+}
+
+/* Mobile phone adjustments */
+@media (max-width: 600px) {
+    .welcome-text {
+        font-size: 14px;         /* Smaller text on phones */
+    }
+
+    .upload-area {
+        padding: 40px 20px;      /* Less padding on phones */
+    }
+}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamForge</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Main upload area -->
+        <div class="upload-area" id="uploadArea">
+            <p class="welcome-text">welcome to streamforge! please drop a video :)</p>
+            <input type="file" id="fileInput" class="file-input" accept=".mp4,.mov,.avi,.webm" hidden>
+        </div>
+
+        <!-- Jobs list - minimal style -->
+        <div id="jobsList" class="jobs-list">
+            <!-- Jobs will appear here -->
+        </div>
+
+        <!-- System status - single line -->
+        <div id="systemStatus" class="system-status">
+            <span id="statusText">system: ready</span>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

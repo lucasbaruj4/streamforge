@@ -3,10 +3,17 @@ import { createReadStream } from 'fs'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs/promises'
+import cors from 'cors'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
 import { videoQueue, queueEvents, connection } from './lib/queue.js'
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename)
 const app = express()
+app.use(cors());
 const PORT = 3000
+app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({
   dest: 'uploads/',
