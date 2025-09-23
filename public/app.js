@@ -25,7 +25,7 @@ function setupUploadArea() {
 
   // File selection
   fileInput.addEventListener('change', (e) => {
-    const file = e.dataTransfer.files[0];
+    const file = e.target.files[0];
     if (file) handleFileUpload(file);
   });
 
@@ -64,43 +64,43 @@ async function handleFileUpload(file) {
     body: formData
   });
 
-  const { jobId } = await response.json();
+  const { jobID } = await response.json();
 
-  const card = createJobCard(jobId, file.name);
+  const card = createJobCard(jobID, file.name);
   document.getElementById('jobsList').appendChild(card);
 
-  connectToSSE(jobId);
+  connectToSSE(jobID);
   console.log('File to upload:', file);
 }
 
 // Create a job card in the UI
-function createJobCard(jobId, filename, initialStatus = 'queued') {
+function createJobCard(jobID, filename, initialStatus = 'queued') {
   const card = document.createElement('div');
   card.className = 'job-item';
-  card.id = `job-${jobId}`;
+  card.id = `job-${jobID}`;
 
   const header = document.createElement('div');
   header.className = `job-header`;
 
   const jobtitle = document.createElement('span');
-  jobtitle.textContent = `Job: ${jobId}`;
+  jobtitle.textContent = `Job: ${jobID}`;
 
   const filenameSpan = document.createElement('span');
   filenameSpan.textContent = `${filename}`;
 
   const statusSpan = document.createElement('span');
   statusSpan.textContent = initialStatus;
-  statusSpan.id = `status-${jobId}`;
+  statusSpan.id = `status-${jobID}`;
 
   const progressBar = document.createElement('div');
   progressBar.className = 'progress-bar';
-  progressBar.id = `progress-${jobId}`;
+  progressBar.id = `progress-${jobID}`;
   progressBar.textContent = `[░░░░░░░░░░] 0%`;
 
   const viewButton = document.createElement('button');
   viewButton.className = 'viewButton';
   viewButton.hidden = true;
-  viewButton.id = `viewButton-${jobId}`;
+  viewButton.id = `viewButton-${jobID}`;
 
   header.appendChild(jobtitle);
   header.appendChild(filenameSpan);
@@ -115,32 +115,20 @@ function createJobCard(jobId, filename, initialStatus = 'queued') {
 }
 
 // Connect to Server-Sent Eve-nts for real-time progress
-function connectToSSE(jobId) {
-  // TODO(human): Implement SSE connection
-  // 1. Create EventSource to /api/jobs/{id}/progress
-  // 2. Handle message events to update progress
-  // 3. Update job card UI on progress/completion/failure
-  // 4. Clean up connection when job completes
-  // 5. Store connection in activeConnections Map
-  if (activeConnections.has(jobId)) {
-    console.log('Already connected to job:', jobId);
+function connectToSSE(jobID) {
+  let jobCompleted = false;
+  if (activeConnections.has(jobID)) {
+    console.log('Already connected to job:', jobID);
     return;
   }
-  const eventSource = new EventSource(`/api/jobs/${jobId}/progress`);
-  activeConnections.set(jobId, eventSource);
-  const progressBar = document.getElementById(`progress-${jobId}`);
+  const eventSource = new EventSource(`/api/jobs/${jobID}/progress`);
+  activeConnections.set(jobID, eventSource);
+  const progressBar = document.getElementById(`progress-${jobID}`);
   let blockyProgressBar = '';
-
-  // Handling eventSource connection error
-  eventSource.onerror = (error) => {
-    eventSource.close();
-    activeConnections.delete(jobId);
-    console.error('SSE connection error: ', error);
-    progressBar.textContent = `[ERROR] Connection Lost`;
-  }
 
   // Handling progress, failure and success
   eventSource.onmessage = (event) => {
+    console.log('Raw SSE Message:', event.data);
     try {
       const data = JSON.parse(event.data);
       if (data.progress !== undefined) {
@@ -157,34 +145,46 @@ function connectToSSE(jobId) {
         const failedMessage = data.message;
         blockyProgressBar = `[${failedBlocky}] ${failedMessage}`;
         eventSource.close();
-        activeConnections.delete(jobId);
-      } else if (data.returnValue !== undefined) {
+        activeConnections.delete(jobID);
+      } else if (data.returnvalue !== undefined) {
+        jobCompleted = true;
         const completedMessage = data.message;
         const filledBlocky = 'X'.repeat(10);
         blockyProgressBar = `[${filledBlocky}] ${completedMessage}`;
         eventSource.close();
-        activeConnections.delete(jobId);
+        activeConnections.delete(jobID);
       }
       progressBar.textContent = blockyProgressBar;
     } catch (e) {
       console.log('Non-JSON message:', event.data);
     }
   };
-  console.log(`Connecting to SSE for job ${jobId}`);
+
+  // Handling eventSource connection error
+  eventSource.onerror = (error) => {
+    if (!jobCompleted) {
+      console.error('SSE connection error: ', error);
+      progressBar.textContent = `[ERROR] Connection Lost`;
+    };
+    eventSource.close();
+    activeConnections.delete(jobID);
+  }
+
+  console.log(`Connecting to SSE for job ${jobID}`);
 }
 
 // Update job card with new status/progress
-function updateJobCard(jobId, data) {
+function updateJobCard(jobID, data) {
   // TODO(human): Update the job card UI
   // Find the card by ID
   // Update progress bar width and text
   // Update status badge
   // Show action buttons if complete
 
-  const card = document.getElementById(`job - ${jobId} `);
+  const card = document.getElementById(`job - ${jobID} `);
   if (!card) return;
 
-  console.log(`Updating job ${jobId}: `, data);
+  console.log(`Updating job ${jobID}: `, data);
 }
 
 // Load existing jobs on page load
@@ -216,21 +216,21 @@ async function loadSystemHealth() {
 }
 
 // Play completed video
-function playVideo(jobId, quality = '720p') {
+function playVideo(jobID, quality = '720p') {
   // TODO(human): Implement video playback
   // Create or show modal with video player
-  // Set video source to /api/stream/{jobId}/{quality}
+  // Set video source to /api/stream/{jobID}/{quality}
   // Add quality selector for 1080p/720p/360p
 
-  console.log(`Playing video ${jobId} at ${quality}`);
+  console.log(`Playing video ${jobID} at ${quality}`);
 }
 
 // Download completed video
-function downloadVideo(jobId, quality = '720p') {
+function downloadVideo(jobID, quality = '720p') {
   // Create a download link
   const link = document.createElement('a');
-  link.href = `${API_BASE}/stream/${jobId}/${quality}`;
-  link.download = `video-${jobId}-${quality}.mp4`;
+  link.href = `${API_BASE}/stream/${jobID}/${quality}`;
+  link.download = `video-${jobID}-${quality}.mp4`;
   link.click();
 }
 
