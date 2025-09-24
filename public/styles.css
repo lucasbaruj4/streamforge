@@ -105,6 +105,49 @@ body {
     font-size: 12px;             /* Small text */
 }
 
+.redbtn {
+  background: red;
+  color: black;
+  padding: 8px 16px;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+}
+
+.redbtn:hover {
+  background: black;
+  color: red;
+  border-color: red;
+}
+
+.greenbtn {
+  background: #0f0;
+  color: black;
+  padding: 8px 16px;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+}
+
+.greenbtn:hover {
+  background: black;
+  color: #0f0;
+  border-color: #0f0;
+}
+
+.videoPlayer {
+    width: 95%;                  /* Almost full width */
+    max-width: 1200px;           /* Much wider max */
+    height: 70vh;                /* 70% of viewport height */
+    min-height: 500px;           /* Bigger minimum height */
+    max-height: 800px;           /* Cap the maximum height */
+    margin: 20px auto;           /* Center horizontally with margin */
+    display: block;              /* Block element for centering */
+    border: 2px solid #0f0;      /* Green terminal border */
+    background: #000;            /* Black background while loading */
+    object-fit: contain;         /* Maintain aspect ratio without cropping */
+}
+
+
+
 /* Button styling - minimalist terminal style */
 .btn {
     background: none;            /* No background */

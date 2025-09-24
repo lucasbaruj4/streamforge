@@ -5,6 +5,7 @@ const API_BASE = 'http://localhost:3000/api';
 // Store active EventSource connections for cleanup
 const activeConnections = new Map();
 
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
   setupUploadArea();
@@ -81,6 +82,7 @@ function createJobCard(jobID, filename, initialStatus = 'queued') {
 
   const header = document.createElement('div');
   header.className = `job-header`;
+  header.id = `header-job-${jobID}`;
 
   const jobtitle = document.createElement('span');
   jobtitle.textContent = `Job: ${jobID}`;
@@ -97,10 +99,60 @@ function createJobCard(jobID, filename, initialStatus = 'queued') {
   progressBar.id = `progress-${jobID}`;
   progressBar.textContent = `[░░░░░░░░░░] 0%`;
 
+  const welcomeText = document.getElementById('welcomeText');
+
   const viewButton = document.createElement('button');
-  viewButton.className = 'viewButton';
+  viewButton.className = 'greenbtn';
   viewButton.hidden = true;
+  viewButton.textContent = 'View';
   viewButton.id = `viewButton-${jobID}`;
+  viewButton.addEventListener('click', () => {
+    header.appendChild(videoPlayer);
+    header.appendChild(closeVideoButton);
+    videoPlayer.src = `${API_BASE}/stream/${jobID}/720p`;
+    jobtitle.hidden = true;
+    filenameSpan.hidden = true;
+    statusSpan.hidden = true;
+    progressBar.hidden = true;
+    welcomeText.hidden = true;
+    viewButton.hidden = true;
+  });
+
+  const closeVideoButton = document.createElement('button');
+  closeVideoButton.textContent = 'Close';
+  closeVideoButton.className = 'redbtn';
+  closeVideoButton.addEventListener('click', () => {
+    header.removeChild(videoPlayer);
+    header.removeChild(closeVideoButton);
+    jobtitle.hidden = false;
+    filenameSpan.hidden = false;
+    statusSpan.hidden = false;
+    progressBar.hidden = false;
+    welcomeText.hidden = false;
+    viewButton.hidden = false;
+  });
+
+
+
+  const videoPlayer = document.createElement('video');
+  videoPlayer.controls = true;
+  videoPlayer.className = 'videoPlayer';
+
+  // Debug video loading
+  videoPlayer.addEventListener('loadeddata', () => {
+    console.log('Video loaded successfully');
+  });
+
+  videoPlayer.addEventListener('error', (e) => {
+    console.error('Video failed to load:', e);
+    console.log('Video URL was:', videoPlayer.src);
+  });
+
+  // We have to create the download API first
+  // const downloadButton = document.createElement('button');
+  // downloadButton.className = 'downloadButton';
+  // downloadButton.hidden = true;
+  // downloadButton.id = `downloadButton-${jobID}`;
 
   header.appendChild(jobtitle);
   header.appendChild(filenameSpan);
@@ -125,10 +177,10 @@ function connectToSSE(jobID) {
   activeConnections.set(jobID, eventSource);
   const progressBar = document.getElementById(`progress-${jobID}`);
   let blockyProgressBar = '';
+  const viewButton = document.getElementById(`viewButton-${jobID}`);
 
   // Handling progress, failure and success
   eventSource.onmessage = (event) => {
-    console.log('Raw SSE Message:', event.data);
     try {
       const data = JSON.parse(event.data);
       if (data.progress !== undefined) {
@@ -139,20 +191,19 @@ function connectToSSE(jobID) {
         const filledBlocky = 'X'.repeat(filledBlocks);
         const emptyBlocky = '░'.repeat(10 - filledBlocks);
 
-        blockyProgressBar = `[${filledBlocky}${emptyBlocky}] ${currentProgress}%`;
+        blockyProgressBar = `[${filledBlocky}${emptyBlocky}]${currentProgress} % `;
       } else if (data.failedReason !== undefined) {
         const failedBlocky = '?'.repeat(10);
         const failedMessage = data.message;
-        blockyProgressBar = `[${failedBlocky}] ${failedMessage}`;
+        blockyProgressBar = `[${failedBlocky}]${failedMessage}`;
         eventSource.close();
         activeConnections.delete(jobID);
       } else if (data.returnvalue !== undefined) {
         jobCompleted = true;
-        const completedMessage = data.message;
+        const completedMessage = data.message || 'Completed';
         const filledBlocky = 'X'.repeat(10);
-        blockyProgressBar = `[${filledBlocky}] ${completedMessage}`;
-        eventSource.close();
-        activeConnections.delete(jobID);
+        blockyProgressBar = `[${filledBlocky}]${completedMessage}`;
+        viewButton.hidden = false;
       }
       progressBar.textContent = blockyProgressBar;
     } catch (e) {
@@ -200,15 +251,9 @@ async function loadSystemHealth() {
   try {
     const response = await fetch(`${API_BASE}/health`);
     const health = await response.json();
-
-    // TODO(human): Display health metrics
-    // Show worker count, queue stats, Redis status
-    // Update the health-info div with metric cards
-
     console.log('System health:', health);
 
     const healthInfo = document.getElementById('healthInfo');
-    // Add your health display logic here
 
   } catch (error) {
     console.error('Failed to load health metrics:', error);
@@ -216,7 +261,7 @@ async function loadSystemHealth() {
 }
 
 // Play completed video
-function playVideo(jobID, quality = '720p') {
+function playVideo(jobID, quality) {
   // TODO(human): Implement video playback
   // Create or show modal with video player
   // Set video source to /api/stream/{jobID}/{quality}
