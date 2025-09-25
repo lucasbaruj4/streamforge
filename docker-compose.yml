@@ -15,5 +15,26 @@ services:
       timeout: 3s
       retries: 5
 
+  # MinIO - S3-compatible object storage for distributed file access
+  minio:
+    image: minio/minio:latest
+    container_name: streamforge-minio
+    ports:
+      - "9000:9000"  # S3 API endpoint
+      - "9001:9001"  # Web console (http://localhost:9001)
+    volumes:
+      - minio-data:/data
+    environment:
+      # TODO: Move these credentials to .env file for production
+      MINIO_ROOT_USER: minioadmin      # Default user - CHANGE IN PRODUCTION
+      MINIO_ROOT_PASSWORD: minioadmin  # Default password - CHANGE IN PRODUCTION
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   redis-data:  # Named volume for Redis data persistence
+  minio-data:  # Named volume for MinIO object storage

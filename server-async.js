@@ -7,6 +7,7 @@ import cors from 'cors'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 import { videoQueue, queueEvents, connection } from './lib/queue.js'
+import storage from './lib/storage.js'  // MinIO storage interface
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename)
@@ -32,24 +33,36 @@ const upload = multer({
   }
 });
 
-// New async upload endpoint
+// New async upload endpoint with MinIO storage
 app.post('/api/upload', upload.single('video'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No video file provided' });
   }
 
+  try {
+    // TODO(human): Upload file to MinIO before queuing job
+    // 1. Generate unique object key (e.g., `uploads/${job.id}/${originalname}`)
+    // 2. Call storage.uploadFile(req.file.path, objectKey)
+    // 3. Delete local temp file after successful upload
+    // 4. Pass objectKey to job instead of local path
 
-  const job = await videoQueue.add('transcode-video', {
-    inputPath: req.file.path,
-    originalName: req.file.originalname
-  });
+    const job = await videoQueue.add('transcode-video', {
+      inputPath: req.file.path,  // TODO(human): Replace with objectKey
+      originalName: req.file.originalname
+    });
 
-  // Return immediately with job ID
-  res.json({
-    jobID: job.id,
-    message: 'Video uploaded and queued for processing',
-    status: 'queued'
-  });
+    // Return immediately with job ID
+    res.json({
+      jobID: job.id,
+      message: 'Video uploaded and queued for processing',
+      status: 'queued'
+    });
+  } catch (error) {
+    console.error('Upload failed:', error);
+    // Clean up temp file on error
+    await fs.unlink(req.file.path).catch(() => {});
+    res.status(500).json({ error: 'Upload failed' });
+  }
 });
 
 // Get job status endpoint
@@ -271,6 +284,20 @@ app.get('/api/stream/:id/:quality', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`StreamForge API running on http://localhost:${PORT}`)
-});
+// Initialize storage and start server
+async function startServer() {
+  try {
+    // Initialize MinIO storage
+    await storage.initializeStorage();
+    console.log('MinIO storage initialized');
+
+    app.listen(PORT, () => {
+      console.log(`StreamForge API running on http://localhost:${PORT}`)
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();

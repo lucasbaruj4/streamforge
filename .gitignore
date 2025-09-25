@@ -5,3 +5,4 @@ transcoded/*
 uploads/*
 !uploads/.gitkeep
 node_modules/.package-lock.json
+.env.local
