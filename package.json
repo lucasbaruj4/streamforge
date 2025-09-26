@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server-async.js",
-    "devall": "node --watch server-async.js & node --watch worker.js & wait"
+    "devall": "node --watch server-async.js & node --watch worker.js & wait",
+    "worker": "node --watch worker.js"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +17,7 @@
     "@aws-sdk/lib-storage": "^3.895.0",
     "bullmq": "^5.58.5",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "fluent-ffmpeg": "^2.1.3",
     "ioredis": "^5.7.0",

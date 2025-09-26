@@ -2,12 +2,15 @@ import express from 'express'
 import { createReadStream } from 'fs'
 import multer from 'multer'
 import path from 'path'
+import { v4 } from 'uuid'
 import fs from 'fs/promises'
 import cors from 'cors'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 import { videoQueue, queueEvents, connection } from './lib/queue.js'
 import storage from './lib/storage.js'  // MinIO storage interface
+import { HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { s3Client } from "./lib/storage.js"
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename)
@@ -38,19 +41,18 @@ app.post('/api/upload', upload.single('video'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No video file provided' });
   }
-
   try {
-    // TODO(human): Upload file to MinIO before queuing job
-    // 1. Generate unique object key (e.g., `uploads/${job.id}/${originalname}`)
-    // 2. Call storage.uploadFile(req.file.path, objectKey)
-    // 3. Delete local temp file after successful upload
-    // 4. Pass objectKey to job instead of local path
+    const storage_id = v4();
+
+    const objectKey = `uploads/${storage_id}/${req.file.originalname}`;
+    await storage.uploadFile(objectKey, req.file.path);
+    await fs.unlink(req.file.path);
 
     const job = await videoQueue.add('transcode-video', {
-      inputPath: req.file.path,  // TODO(human): Replace with objectKey
+      objectKey: objectKey,  
       originalName: req.file.originalname
     });
-
+    
     // Return immediately with job ID
     res.json({
       jobID: job.id,
@@ -242,16 +244,21 @@ app.get('/api/stream/:id/:quality', async (req, res) => {
 
   // Get the output path from job's return value
   const outputs = job.returnvalue;
-  const videoPath = outputs?.[quality];
+  const objectKey = outputs?.[quality];
 
-  if (!videoPath) {
+  if (!objectKey) {
     return res.status(404).json({ error: 'Quality not available' });
   }
 
   // Rest of streaming logic stays the same
   try {
-    const stat = await fs.stat(videoPath);
-    const fileSize = stat.size;
+    const statCommand = new HeadObjectCommand ({
+      Bucket: 'streamforge-videos',
+      Key: objectKey
+    });
+
+    const statResponse = await s3Client.send(statCommand);
+    const fileSize = statResponse.ContentLength;
     const range = req.headers.range;
 
     if (range) {
@@ -260,7 +267,13 @@ app.get('/api/stream/:id/:quality', async (req, res) => {
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunksize = (end - start) + 1;
 
-      const stream = createReadStream(videoPath, { start, end });
+      const streamCommand = new GetObjectCommand({
+        Bucket: 'streamforge-videos',
+        Key: objectKey,
+        Range: `bytes=${start}-${end}`
+      });
+
+      const streamResponse = await s3Client.send(streamCommand);
 
       res.writeHead(206, {
         'Content-Range': `bytes ${start} -${end}/${fileSize}`,
@@ -269,14 +282,20 @@ app.get('/api/stream/:id/:quality', async (req, res) => {
         'Content-Type': 'video/mp4'
       });
 
-      stream.pipe(res);
+      streamResponse.Body.pipe(res);
     } else {
       res.writeHead(200, {
-        'Content-Length': fileSize,
         'Content-Type': 'video/mp4'
       });
 
-      createReadStream(videoPath).pipe(res);
+      const fullStreamCommand = new GetObjectCommand({
+        Bucket: 'streamforge-videos',
+        Key: objectKey
+      });
+
+      const fullStreamResponse = await s3Client.send(fullStreamCommand);
+
+      fullStreamResponse.Body.pipe(res);
     }
   } catch (error) {
     console.error('Error streaming:', error);

@@ -3,10 +3,15 @@ import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import fs from 'fs/promises';
 import { connection } from './lib/queue.js';
+import storage from './lib/storage.js';
 
 async function processVideoJob(job) {
-  const { inputPath, originalName } = job.data;
+  const { objectKey, originalName } = job.data;
   console.log(`Processing job ${job.id}: ${originalName}`);
+  const temp_dir = path.join('tmp', job.id);
+  await fs.mkdir(temp_dir, { recursive : true });
+  const localVideoPath = path.join(temp_dir, originalName);
+  await storage.downloadFile(objectKey, localVideoPath);
   const outputDir = path.join('transcoded', job.id);
   await fs.mkdir(outputDir, { recursive: true });
 
@@ -22,7 +27,7 @@ async function processVideoJob(job) {
     const outputPath = path.join(outputDir, `${quality.name}.mp4`);
 
     await new Promise((resolve, reject) => {
-      const command = ffmpeg(inputPath)
+      const command = ffmpeg(localVideoPath)
         .outputOptions([
           `-vf scale=${quality.width}:${quality.height}`,
           `-b:v ${quality.bitrate}`,
@@ -40,9 +45,11 @@ async function processVideoJob(job) {
           );
           job.updateProgress(TotalProgress);
         })
-        .on('end', () => {
+        .on('end', async () => {
           completedQualities++;
-          output[quality.name] = outputPath;
+          const transcodeKey = `transcoded/${job.id}/${quality.name}.mp4`;
+          await storage.uploadFile(transcodeKey, outputPath);
+          output[quality.name] = transcodeKey;
           console.log(`${quality.name} complete for job ${job.id}`);
           resolve();
         })
@@ -53,9 +60,9 @@ async function processVideoJob(job) {
         })
         .save(outputPath);
     })
-
   }
-  await fs.unlink(inputPath);
+  await fs.rm(temp_dir, { recursive : true, force : true});
+  await fs.rm(outputDir, { recursive : true, force : true});
 
   console.log(`Job ${job.id} fully completed`);
   return output;
