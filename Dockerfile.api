@@ -1,0 +1,38 @@
+# Multi-stage build - this is how Google/Meta build their images
+# Stage 1: Dependencies only (cached unless package.json changes)
+FROM node:20-alpine AS dependencies
+WORKDIR /app
+# Copy only package files first for better layer caching
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Stage 2: Production image
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Security: Run as non-root user (standard practice in production)
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy dependencies from previous stage
+COPY --from=dependencies /app/node_modules ./node_modules
+
+# Copy application code
+COPY --chown=nodejs:nodejs . .
+
+# Create necessary directories with correct permissions
+RUN mkdir -p uploads tmp transcoded && \
+    chown -R nodejs:nodejs uploads tmp transcoded
+
+USER nodejs
+
+# Container health monitoring
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/api/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"
+
+EXPOSE 3000
+
+# TODO(human): Add the CMD instruction to start the server
+# Should run: node server-async.js
+CMD ["node", "server-async.js"]
+# Consider: What happens if the process crashes? Should we use a process manager?

@@ -1,0 +1,33 @@
+# Worker container - handles video transcoding
+FROM node:20-alpine AS dependencies
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+# Install FFmpeg - the heart of video processing
+# This is what YouTube/Netflix use for transcoding
+RUN apk add --no-cache ffmpeg
+
+# Security: Non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --chown=nodejs:nodejs . .
+
+# Workers need temp directories for video processing
+RUN mkdir -p tmp transcoded && \
+    chown -R nodejs:nodejs tmp transcoded
+
+USER nodejs
+
+# No EXPOSE needed - workers don't serve HTTP
+# No HEALTHCHECK - BullMQ monitors worker health
+
+# TODO(human): Add the CMD instruction to start the worker
+# Should run: node worker.js
+CMD ["node", "worker.js"]
+# Think about: How many concurrent jobs should each worker handle?
