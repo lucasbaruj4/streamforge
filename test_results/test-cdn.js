@@ -176,12 +176,4 @@ async function runTest() {
     console.log(`\n${colors.cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
 }
 
-// TODO(human): Add a function to test with real video upload
-// Should upload a test video first, then measure streaming performance
-// Consider: How would you handle the async upload->transcode->test flow?
-
-// Run the test
-console.log('Note: This test uses mock video IDs for demonstration.');
-console.log('For real testing, upload a video first and use its job ID.\n');
-
 runTest().catch(console.error);
