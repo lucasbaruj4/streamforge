@@ -11,13 +11,23 @@ import { videoQueue, queueEvents, connection } from './lib/queue.js'
 import storage from './lib/storage.js'  // MinIO storage interface
 import { HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { s3Client } from "./lib/storage.js"
+import { supabaseAdmin } from './lib/supabase.js'
+import { requireAuth, optionalAuth } from './middleware/auth.js'
+import authRoutes from './routes/auth.js'
+import videoRoutes from './routes/videos.js'
+import { checkAnonUploadLimit, incrementAnonUpload, getClientIP } from './lib/ratelimit.js'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename)
 const app = express()
 app.use(cors());
+app.use(express.json()); // Parse JSON request bodies
 const PORT = 3000
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Mount routes
+app.use('/auth', authRoutes);
+app.use('/api/videos', videoRoutes);
 
 const upload = multer({
   dest: 'uploads/',
@@ -36,28 +46,82 @@ const upload = multer({
   }
 });
 
-// New async upload endpoint with MinIO storage
-app.post('/api/upload', upload.single('video'), async (req, res) => {
+// Upload endpoint - allows 1 anonymous upload, requires auth after that
+app.post('/api/upload', optionalAuth, upload.single('video'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No video file provided' });
   }
-  try {
-    const storage_id = v4();
 
+  try {
+    // Check if user is authenticated
+    const isAuthenticated = !!req.user;
+
+    if (!isAuthenticated) {
+      // Anonymous user - check IP-based rate limit
+      const clientIP = getClientIP(req);
+      const { allowed, count, limit } = await checkAnonUploadLimit(clientIP);
+
+      if (!allowed) {
+        // Clean up uploaded file before rejecting
+        await fs.unlink(req.file.path).catch(() => {});
+
+        return res.status(401).json({
+          error: 'Anonymous upload limit reached',
+          message: `You've uploaded ${count} video(s). Please login to upload more.`,
+          requiresAuth: true
+        });
+      }
+
+      // Increment anonymous upload counter
+      await incrementAnonUpload(clientIP);
+      console.log(`Anonymous upload from ${clientIP} - count: ${count + 1}/${limit}`);
+    }
+
+    const storage_id = v4();
     const objectKey = `uploads/${storage_id}/${req.file.originalname}`;
+
+    // Upload to MinIO
     await storage.uploadFile(objectKey, req.file.path);
     await fs.unlink(req.file.path);
 
-    const job = await videoQueue.add('transcode-video', {
-      objectKey: objectKey,  
-      originalName: req.file.originalname
+    // Queue transcoding job
+    const job = await videoQueue.add('video-transcoding', {
+      objectKey: objectKey,
+      originalName: req.file.originalname,
+      userId: req.user?.id || null // Pass user ID if authenticated, null otherwise
     });
-    
-    // Return immediately with job ID
+
+    // Create video record in database only if authenticated
+    let video = null;
+    if (isAuthenticated) {
+      const { data, error: dbError } = await supabaseAdmin
+        .from('videos')
+        .insert({
+          user_id: req.user.id,
+          job_id: job.id,
+          title: req.file.originalname.replace(/\.[^/.]+$/, ''), // Remove extension
+          original_filename: req.file.originalname,
+          status: 'processing',
+          file_size_bytes: req.file.size,
+          storage_paths: { original: objectKey }
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.error('Database insert failed:', dbError);
+      } else {
+        video = data;
+      }
+    }
+
+    // Return immediately with job ID and video ID
     res.json({
-      jobID: job.id,
+      jobId: job.id,
+      videoId: video?.id,
       message: 'Video uploaded and queued for processing',
-      status: 'queued'
+      status: 'queued',
+      isAnonymous: !isAuthenticated
     });
   } catch (error) {
     console.error('Upload failed:', error);
@@ -141,34 +205,32 @@ app.get('/api/jobs/:id/progress', async (req, res) => {
   // Listener objects
   const progressListener = (eventData) => {
     if (eventData.jobId === id) {
+      res.write(`event: progress\n`);
       res.write(`data: ${JSON.stringify({
         id: id,
         progress: eventData.data
-      }
-      )}\n\n`);
+      })}\n\n`);
     }
   };
 
   const failedListener = (eventData) => {
     if (eventData.jobId === id) {
+      res.write(`event: failed\n`);
       res.write(`data: ${JSON.stringify({
         id: id,
-        failedReason: eventData.failedReason,
-        message: 'Job Failed'
-      }
-      )}\n\n`);
+        error: eventData.failedReason || 'Job failed'
+      })}\n\n`);
       cleanup();
     }
   };
 
   const completedListener = (eventData) => {
     if (eventData.jobId === id) {
+      res.write(`event: completed\n`);
       res.write(`data: ${JSON.stringify({
         id: id,
-        returnvalue: eventData.returnvalue,
-        message: 'Job Completed'
-      }
-      )}\n\n`);
+        output: eventData.returnvalue
+      })}\n\n`);
       cleanup();
     }
   };

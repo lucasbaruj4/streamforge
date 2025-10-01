@@ -24,8 +24,9 @@ router.post('/register', async (req, res) => {
     })
 
     if (error) {
+      console.error('Supabase registration error:', error)
       // Generic error message to prevent user enumeration attacks
-      return res.status(400).json({ error: 'Registration failed' })
+      return res.status(400).json({ error: 'Registration failed', details: error.message })
     }
 
     // Return user data and session

@@ -1,13 +1,18 @@
 
 // StreamForge Frontend Application
 const API_BASE = 'http://localhost:3000/api';
+const AUTH_BASE = 'http://localhost:3000/auth';
 
 // Store active EventSource connections for cleanup
 const activeConnections = new Map();
 
+// Auth state management
+let authToken = localStorage.getItem('authToken');
+let currentUser = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
+  setupAuth();
   setupUploadArea();
   loadExistingJobs();
   loadSystemHealth();
@@ -16,271 +21,437 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(loadSystemHealth, 30000);
 });
 
+// Setup auth UI and handlers
+function setupAuth() {
+  const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+  const registerSubmitBtn = document.getElementById('registerSubmitBtn');
+  const switchToRegisterBtn = document.getElementById('switchToRegisterBtn');
+  const switchToLoginBtn = document.getElementById('switchToLoginBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  loginSubmitBtn.addEventListener('click', () => handleLogin());
+  registerSubmitBtn.addEventListener('click', () => handleRegister());
+  switchToRegisterBtn.addEventListener('click', () => showRegisterForm());
+  switchToLoginBtn.addEventListener('click', () => showLoginForm());
+  logoutBtn.addEventListener('click', () => handleLogout());
+
+  // Check if user is already logged in
+  if (authToken) {
+    verifyToken();
+  }
+}
+
+// Show login form
+function showLoginForm() {
+  document.getElementById('loginBox').classList.remove('hidden');
+  document.getElementById('registerBox').classList.add('hidden');
+  clearAuthErrors();
+}
+
+// Show register form
+function showRegisterForm() {
+  document.getElementById('loginBox').classList.add('hidden');
+  document.getElementById('registerBox').classList.remove('hidden');
+  clearAuthErrors();
+}
+
+// Show auth modal with custom message (defaults to login)
+function showAuthModal(message = 'login to continue') {
+  document.getElementById('loginMessage').textContent = message;
+  document.getElementById('authOverlay').classList.remove('hidden');
+  showLoginForm();
+}
+
+// Hide auth modal
+function hideAuthModal() {
+  document.getElementById('authOverlay').classList.add('hidden');
+  clearAuthInputs();
+  clearAuthErrors();
+}
+
+// Clear all auth form inputs
+function clearAuthInputs() {
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('registerEmail').value = '';
+  document.getElementById('registerPassword').value = '';
+  document.getElementById('registerPasswordConfirm').value = '';
+}
+
+// Clear all auth errors
+function clearAuthErrors() {
+  document.getElementById('loginError').classList.add('hidden');
+  document.getElementById('registerError').classList.add('hidden');
+}
+
+// Show login error
+function showLoginError(message) {
+  const errorEl = document.getElementById('loginError');
+  errorEl.textContent = message;
+  errorEl.classList.remove('hidden');
+}
+
+// Show register error
+function showRegisterError(message) {
+  const errorEl = document.getElementById('registerError');
+  errorEl.textContent = message;
+  errorEl.classList.remove('hidden');
+}
+
+// Handle login
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+
+  if (!email || !password) {
+    showLoginError('email and password required');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${AUTH_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showLoginError(data.error || 'login failed');
+      return;
+    }
+
+    // Store token and update UI
+    authToken = data.session.access_token;
+    currentUser = data.user;
+    localStorage.setItem('authToken', authToken);
+
+    updateUserUI();
+    hideAuthModal();
+  } catch (error) {
+    showLoginError('connection error');
+    console.error('Login error:', error);
+  }
+}
+
+// Handle registration
+async function handleRegister() {
+  const email = document.getElementById('registerEmail').value;
+  const password = document.getElementById('registerPassword').value;
+  const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+
+  if (!email || !password || !passwordConfirm) {
+    showRegisterError('all fields required');
+    return;
+  }
+
+  if (password.length < 6) {
+    showRegisterError('password must be at least 6 characters');
+    return;
+  }
+
+  if (password !== passwordConfirm) {
+    showRegisterError('passwords do not match');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${AUTH_BASE}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showRegisterError(data.details || data.error || 'registration failed');
+      return;
+    }
+
+    // Check if session exists (Supabase might require email confirmation)
+    if (!data.session) {
+      showRegisterError('please check your email to verify your account');
+      return;
+    }
+
+    // Store token and update UI
+    authToken = data.session.access_token;
+    currentUser = data.user;
+    localStorage.setItem('authToken', authToken);
+
+    updateUserUI();
+    hideAuthModal();
+  } catch (error) {
+    showRegisterError('connection error');
+    console.error('Registration error:', error);
+  }
+}
+
+// Handle logout
+function handleLogout() {
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('authToken');
+  updateUserUI();
+}
+
+// Verify existing token
+async function verifyToken() {
+  try {
+    const response = await fetch(`${AUTH_BASE}/user`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      currentUser = data.user;
+      updateUserUI();
+    } else {
+      // Token invalid, clear it
+      authToken = null;
+      localStorage.removeItem('authToken');
+    }
+  } catch (error) {
+    console.error('Token verification failed:', error);
+  }
+}
+
+// Update user UI based on auth state
+function updateUserUI() {
+  const userBar = document.getElementById('userBar');
+  const userEmail = document.getElementById('userEmail');
+
+  if (currentUser) {
+    userEmail.textContent = currentUser.email;
+    userBar.classList.remove('hidden');
+  } else {
+    userBar.classList.add('hidden');
+  }
+}
+
 // Setup drag and drop upload area
 function setupUploadArea() {
   const uploadArea = document.getElementById('uploadArea');
   const fileInput = document.getElementById('fileInput');
 
-  // Click to upload
   uploadArea.addEventListener('click', () => fileInput.click());
-
-  // File selection
-  fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) handleFileUpload(file);
-  });
-
-  uploadArea.addEventListener('dragenter', () => {
-    uploadArea.classList.add('dragging');
-  });
 
   uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
+    uploadArea.style.borderColor = '#ff0';
   });
 
   uploadArea.addEventListener('dragleave', () => {
-    uploadArea.classList.remove('dragging');
+    uploadArea.style.borderColor = '#0f0';
   });
 
   uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
+    uploadArea.style.borderColor = '#0f0';
     const file = e.dataTransfer.files[0];
-    uploadArea.classList.remove('dragging');
-    handleFileUpload(file);
+    if (file) handleFileUpload(file);
   });
-};
 
-// Handle file upload to server
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleFileUpload(file);
+  });
+}
+
+// Handle file upload
 async function handleFileUpload(file) {
-  if (file.size > 500 * 1024 * 1024) {
-    alert('File too large! Max 500MB');
+  if (!file.type.startsWith('video/')) {
+    updateSystemStatus('error: not a video file', true);
     return;
   }
 
   const formData = new FormData();
   formData.append('video', file);
 
-  const response = await fetch(`${API_BASE}/upload`, {
-    method: 'POST',
-    body: formData
-  });
+  try {
+    updateSystemStatus('uploading...', false);
 
-  const { jobID } = await response.json();
+    const headers = {};
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
 
-  const card = createJobCard(jobID, file.name);
-  document.getElementById('jobsList').appendChild(card);
+    const response = await fetch(`${API_BASE}/upload`, {
+      method: 'POST',
+      headers: headers,
+      body: formData
+    });
 
-  connectToSSE(jobID);
-  console.log('File to upload:', file);
+    const data = await response.json();
+
+    // Check if auth is required (anonymous limit reached)
+    if (response.status === 401 && data.requiresAuth) {
+      showAuthModal(data.message || 'you\'ve reached the upload limit. login to continue');
+      updateSystemStatus('authentication required', false);
+      return;
+    }
+
+    if (!response.ok) {
+      updateSystemStatus(`error: ${data.error}`, true);
+      return;
+    }
+
+    addJobToList(data.jobId, file.name);
+    connectToJobProgress(data.jobId);
+    updateSystemStatus('upload successful', false);
+  } catch (error) {
+    console.error('Upload error:', error);
+    updateSystemStatus('error: upload failed', true);
+  }
 }
 
-// Create a job card in the UI
-function createJobCard(jobID, filename, initialStatus = 'queued') {
-  const card = document.createElement('div');
-  card.className = 'job-item';
-  card.id = `job-${jobID}`;
+// Add job to UI list
+function addJobToList(jobId, filename) {
+  const jobsList = document.getElementById('jobsList');
 
-  const header = document.createElement('div');
-  header.className = `job-header`;
-  header.id = `header-job-${jobID}`;
+  const jobDiv = document.createElement('div');
+  jobDiv.className = 'job';
+  jobDiv.id = `job-${jobId}`;
+  jobDiv.innerHTML = `
+    <div class="job-header">
+      <span class="job-name">${filename}</span>
+      <span class="job-status" id="status-${jobId}">queued</span>
+    </div>
+    <div class="progress-bar" id="progress-${jobId}">
+      <div class="progress-fill"></div>
+    </div>
+    <div class="job-actions" id="actions-${jobId}"></div>
+  `;
 
-  const jobtitle = document.createElement('span');
-  jobtitle.textContent = `Job: ${jobID}`;
-
-  const filenameSpan = document.createElement('span');
-  filenameSpan.textContent = `${filename}`;
-
-  const statusSpan = document.createElement('span');
-  statusSpan.textContent = initialStatus;
-  statusSpan.id = `status-${jobID}`;
-
-  const progressBar = document.createElement('div');
-  progressBar.className = 'progress-bar';
-  progressBar.id = `progress-${jobID}`;
-  progressBar.textContent = `[░░░░░░░░░░] 0%`;
-
-  const welcomeText = document.getElementById('welcomeText');
-
-  const viewButton = document.createElement('button');
-  viewButton.className = 'greenbtn';
-  viewButton.hidden = true;
-  viewButton.textContent = 'View';
-  viewButton.id = `viewButton-${jobID}`;
-  viewButton.addEventListener('click', () => {
-    header.appendChild(videoPlayer);
-    header.appendChild(closeVideoButton);
-    videoPlayer.src = `${API_BASE}/stream/${jobID}/720p`;
-    jobtitle.hidden = true;
-    filenameSpan.hidden = true;
-    statusSpan.hidden = true;
-    progressBar.hidden = true;
-    welcomeText.hidden = true;
-    viewButton.hidden = true;
-  });
-
-  const closeVideoButton = document.createElement('button');
-  closeVideoButton.textContent = 'Close';
-  closeVideoButton.className = 'redbtn';
-  closeVideoButton.addEventListener('click', () => {
-    header.removeChild(videoPlayer);
-    header.removeChild(closeVideoButton);
-    jobtitle.hidden = false;
-    filenameSpan.hidden = false;
-    statusSpan.hidden = false;
-    progressBar.hidden = false;
-    welcomeText.hidden = false;
-    viewButton.hidden = false;
-  });
-
-
-
-  const videoPlayer = document.createElement('video');
-  videoPlayer.controls = true;
-  videoPlayer.className = 'videoPlayer';
-
-  // Debug video loading
-  videoPlayer.addEventListener('loadeddata', () => {
-    console.log('Video loaded successfully');
-  });
-
-  videoPlayer.addEventListener('error', (e) => {
-    console.error('Video failed to load:', e);
-    console.log('Video URL was:', videoPlayer.src);
-  });
-
-  // We have to create the download API first
-  // const downloadButton = document.createElement('button');
-  // downloadButton.className = 'downloadButton';
-  // downloadButton.hidden = true;
-  // downloadButton.id = `downloadButton-${jobID}`;
-
-  header.appendChild(jobtitle);
-  header.appendChild(filenameSpan);
-  header.appendChild(statusSpan);
-  header.appendChild(progressBar);
-  header.appendChild(viewButton);
-
-
-  card.appendChild(header);
-
-  return card;
+  jobsList.prepend(jobDiv);
 }
 
-// Connect to Server-Sent Eve-nts for real-time progress
-function connectToSSE(jobID) {
-  let jobCompleted = false;
-  if (activeConnections.has(jobID)) {
-    console.log('Already connected to job:', jobID);
+// Connect to job progress via SSE
+function connectToJobProgress(jobId) {
+  const eventSource = new EventSource(`${API_BASE}/jobs/${jobId}/progress`);
+
+  activeConnections.set(jobId, eventSource);
+
+  eventSource.addEventListener('progress', (event) => {
+    const data = JSON.parse(event.data);
+    updateJobProgress(jobId, data.progress);
+  });
+
+  eventSource.addEventListener('completed', (event) => {
+    const data = JSON.parse(event.data);
+    markJobComplete(jobId, data);
+    eventSource.close();
+    activeConnections.delete(jobId);
+  });
+
+  eventSource.addEventListener('failed', (event) => {
+    const data = JSON.parse(event.data);
+    markJobFailed(jobId, data.error);
+    eventSource.close();
+    activeConnections.delete(jobId);
+  });
+
+  eventSource.onerror = () => {
+    console.error(`SSE connection error for job ${jobId}`);
+    eventSource.close();
+    activeConnections.delete(jobId);
+  };
+}
+
+// Update job progress bar
+function updateJobProgress(jobId, progress) {
+  const statusEl = document.getElementById(`status-${jobId}`);
+  const progressBar = document.getElementById(`progress-${jobId}`);
+  const progressFill = progressBar.querySelector('.progress-fill');
+
+  if (statusEl) statusEl.textContent = `processing: ${progress}%`;
+  if (progressFill) progressFill.style.width = `${progress}%`;
+}
+
+// Mark job as complete
+function markJobComplete(jobId, data) {
+  const statusEl = document.getElementById(`status-${jobId}`);
+  const actionsEl = document.getElementById(`actions-${jobId}`);
+
+  if (statusEl) statusEl.textContent = 'ready';
+
+  if (actionsEl) {
+    actionsEl.innerHTML = `
+      <button class="btn" onclick="playVideo('${jobId}', '1080p')">play 1080p</button>
+      <button class="btn" onclick="playVideo('${jobId}', '720p')">play 720p</button>
+      <button class="btn" onclick="playVideo('${jobId}', '360p')">play 360p</button>
+    `;
+  }
+}
+
+// Mark job as failed
+function markJobFailed(jobId, error) {
+  const statusEl = document.getElementById(`status-${jobId}`);
+  if (statusEl) {
+    statusEl.textContent = `failed: ${error || 'unknown error'}`;
+    statusEl.style.color = '#f00';
+  }
+}
+
+// Play video
+function playVideo(jobId, quality) {
+  const jobDiv = document.getElementById(`job-${jobId}`);
+
+  // Check if video player already exists
+  let playerDiv = jobDiv.querySelector('.video-player-container');
+
+  if (playerDiv) {
+    // Remove existing player
+    playerDiv.remove();
     return;
   }
-  const eventSource = new EventSource(`/api/jobs/${jobID}/progress`);
-  activeConnections.set(jobID, eventSource);
-  const progressBar = document.getElementById(`progress-${jobID}`);
-  let blockyProgressBar = '';
-  const viewButton = document.getElementById(`viewButton-${jobID}`);
 
-  // Handling progress, failure and success
-  eventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.progress !== undefined) {
-        const currentProgress = data.progress;
-        const filledBlocks = Math.floor(currentProgress / 10);
+  // Create new player
+  playerDiv = document.createElement('div');
+  playerDiv.className = 'video-player-container';
+  playerDiv.innerHTML = `
+    <video class="videoPlayer" controls autoplay>
+      <source src="${API_BASE}/stream/${jobId}/${quality}" type="video/mp4">
+      Your browser doesn't support video playback.
+    </video>
+    <button class="btn" onclick="this.parentElement.remove()">close</button>
+  `;
 
-        // Creating the progressBar
-        const filledBlocky = 'X'.repeat(filledBlocks);
-        const emptyBlocky = '░'.repeat(10 - filledBlocks);
-
-        blockyProgressBar = `[${filledBlocky}${emptyBlocky}]${currentProgress} % `;
-      } else if (data.failedReason !== undefined) {
-        const failedBlocky = '?'.repeat(10);
-        const failedMessage = data.message;
-        blockyProgressBar = `[${failedBlocky}]${failedMessage}`;
-        eventSource.close();
-        activeConnections.delete(jobID);
-      } else if (data.returnvalue !== undefined) {
-        jobCompleted = true;
-        const completedMessage = data.message || 'Completed';
-        const filledBlocky = 'X'.repeat(10);
-        blockyProgressBar = `[${filledBlocky}]${completedMessage}`;
-        viewButton.hidden = false;
-      }
-      progressBar.textContent = blockyProgressBar;
-    } catch (e) {
-      console.log('Non-JSON message:', event.data);
-    }
-  };
-
-  // Handling eventSource connection error
-  eventSource.onerror = (error) => {
-    if (!jobCompleted) {
-      console.error('SSE connection error: ', error);
-      progressBar.textContent = `[ERROR] Connection Lost`;
-    };
-    eventSource.close();
-    activeConnections.delete(jobID);
-  }
-
-  console.log(`Connecting to SSE for job ${jobID}`);
+  jobDiv.appendChild(playerDiv);
 }
 
-// Update job card with new status/progress
-function updateJobCard(jobID, data) {
-  // TODO(human): Update the job card UI
-  // Find the card by ID
-  // Update progress bar width and text
-  // Update status badge
-  // Show action buttons if complete
-
-  const card = document.getElementById(`job - ${jobID} `);
-  if (!card) return;
-
-  console.log(`Updating job ${jobID}: `, data);
+// Load existing jobs from localStorage
+function loadExistingJobs() {
+  // This is a placeholder - in Phase 4.5 we'll load from database
+  // For now, jobs are lost on page refresh
 }
 
-// Load existing jobs on page load
-async function loadExistingJobs() {
-  // TODO(human): Fetch recent jobs (optional feature)
-  // Could query completed jobs from last 24h if API supports it
-  // For now, just start fresh
-  console.log('Loading existing jobs...');
-}
-
-// Load and display system health metrics
+// Load system health metrics
 async function loadSystemHealth() {
   try {
     const response = await fetch(`${API_BASE}/health`);
-    const health = await response.json();
-    console.log('System health:', health);
+    const data = await response.json();
 
-    const healthInfo = document.getElementById('healthInfo');
-
+    // Update status bar with health info if needed
+    // For now we keep it simple
   } catch (error) {
-    console.error('Failed to load health metrics:', error);
+    console.error('Health check failed:', error);
   }
 }
 
-// Play completed video
-function playVideo(jobID, quality) {
-  // TODO(human): Implement video playback
-  // Create or show modal with video player
-  // Set video source to /api/stream/{jobID}/{quality}
-  // Add quality selector for 1080p/720p/360p
+// Update system status message
+function updateSystemStatus(message, isError = false) {
+  const statusText = document.getElementById('statusText');
+  statusText.textContent = `system: ${message}`;
+  statusText.style.color = isError ? '#f00' : '#0f0';
 
-  console.log(`Playing video ${jobID} at ${quality}`);
+  // Reset color after 3 seconds
+  if (isError) {
+    setTimeout(() => {
+      statusText.style.color = '#0f0';
+      statusText.textContent = 'system: ready';
+    }, 3000);
+  }
 }
-
-// Download completed video
-function downloadVideo(jobID, quality = '720p') {
-  // Create a download link
-  const link = document.createElement('a');
-  link.href = `${API_BASE}/stream/${jobID}/${quality}`;
-  link.download = `video-${jobID}-${quality}.mp4`;
-  link.click();
-}
-
-// Cleanup function for when page unloads
-window.addEventListener('beforeunload', () => {
-  // Close all SSE connections
-  activeConnections.forEach(connection => connection.close());
-});

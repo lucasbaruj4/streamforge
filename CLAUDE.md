@@ -182,30 +182,47 @@ StreamForge is a scalable video transcoding system that demonstrates enterprise-
 
 ---
 
-### Phase 4.5: User Management & Persistence
-**Target: Week 8**
+### ✅ Phase 4.5: User Management & Persistence - COMPLETED
+**Completed: Day 6**
 
-**Learning Focus:** Authentication, database design, user-generated content patterns
+**Learning Focus:** Authentication, database design, user-generated content patterns, IP-based rate limiting
 
-**Deliverables:**
-- User registration and authentication system
-- PostgreSQL database for user and video metadata
-- Video ownership and naming functionality
-- User video library with search capability
-- Public video browsing by user
+**Delivered:**
+- ✅ Supabase authentication (JWT-based with email verification)
+- ✅ Anonymous upload support (1 video per IP per 24 hours)
+- ✅ IP-based rate limiting via Redis with TTL
+- ✅ PostgreSQL database with Row Level Security (RLS)
+- ✅ Video-user association for authenticated uploads
+- ✅ Optional authentication middleware pattern
+- ✅ Separate login/register forms with validation
+- ✅ Worker database updates with anonymous upload handling
 
-**Success Metrics:**
-- Secure JWT-based authentication
-- Efficient video metadata queries
-- User isolation for private videos
-- Search functionality < 100ms
+**Achievements:**
+- Anonymous users can upload 1 video before requiring authentication
+- Redis tracks IP addresses with 24-hour expiration
+- Database records only created for authenticated users
+- Worker conditionally updates database based on user status
+- JWT token management with Authorization headers
+- Clean terminal-styled authentication UI
+- Password validation (min 6 chars, confirmation matching)
 
-**Technical Requirements:**
-- PostgreSQL with proper indexing
-- Password hashing (bcrypt)
-- JWT token management
-- Database migrations system
-- RESTful user endpoints
+**Key Learnings:**
+- optionalAuth vs requireAuth middleware patterns for hybrid access
+- Redis TTL for automatic rate limit expiration
+- X-Forwarded-For header handling for reverse proxies
+- Conditional database operations prevent orphaned records
+- Supabase RLS policies enforce data isolation at database level
+- Docker environment variable injection from host .env
+- SSE event naming enables granular frontend state transitions
+
+**Critical Bugs Resolved:**
+- Queue name mismatch (transcode-video → video-transcoding)
+- Case sensitivity in API responses (jobID → jobId)
+- SSE endpoint confusion (/status → /progress)
+- SSE event format (added event: progress/completed/failed)
+- Docker build caching with --no-cache flag
+- Container file permissions (chmod 777 for mounted volumes)
+- Anonymous upload database handling in worker
 
 ---
 
@@ -237,25 +254,31 @@ StreamForge is a scalable video transcoding system that demonstrates enterprise-
 ### Phase 6: Frontend Refinement
 **Target: Week 11**
 
-**Learning Focus:** Production UI patterns, state management at scale, user experience optimization
+**Learning Focus:** Production UI patterns, state management at scale, user experience optimization, video player architecture
 
 **Deliverables:**
 - Multi-job management interface
 - Quality selector for video playback (1080p/720p/360p)
+- Smooth quality switching without player interruption
 - Job filtering and search
-- Persistent job history view
+- Persistent video history across sessions
 - Download functionality for transcoded videos
+- Video library persistence for uploaded content
 
 **Success Metrics:**
 - Handle 20+ simultaneous job displays smoothly
-- Quality switching without player reload
-- Job state persistence across sessions
+- Quality switching without player reload or buffering restart
+- Job state persistence across browser sessions
+- Video upload history maintained and retrievable
 - Intuitive multi-video management
+- Seamless quality transitions during playback
 
 **Technical Requirements:**
 - Efficient DOM updates for multiple jobs
-- Local storage for job history
+- Local storage or database for job/video history
 - Lazy loading for video thumbnails
+- Smooth quality switching (preserve playback position and state)
+- Video library UI for browsing uploaded content
 - Keyboard shortcuts for power users
 
 ---

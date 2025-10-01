@@ -167,6 +167,169 @@ body {
     color: #000;         /* Black text on hover (inverted) */
 }
 
+/* Auth modal overlay - terminal style */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.auth-overlay.hidden {
+    display: none;
+}
+
+.auth-box {
+    border: 2px solid #0f0;
+    padding: 40px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+}
+
+.auth-box.hidden {
+    display: none;
+}
+
+.auth-box h2 {
+    color: #0f0;
+    margin-bottom: 10px;
+    font-size: 24px;
+    letter-spacing: 2px;
+}
+
+.auth-box p {
+    color: #0f0;
+    margin-bottom: 20px;
+    font-size: 12px;
+}
+
+.password-input-wrapper {
+    position: relative;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.password-input-wrapper input {
+    width: 100%;
+    background: black;
+    border: 1px solid #0f0;
+    color: #0f0;
+    padding: 10px;
+    padding-right: 35px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.password-toggle {
+    display: none;
+}
+
+.auth-box input {
+    width: 100%;
+    background: black;
+    border: 1px solid #0f0;
+    color: #0f0;
+    padding: 10px;
+    margin-bottom: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.auth-box input::placeholder {
+    color: #0f0;
+    opacity: 0.5;
+}
+
+.auth-box input:focus {
+    outline: none;
+    border-color: #ff0;
+}
+
+.auth-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.auth-buttons button {
+    flex: 1;
+    background: black;
+    border: 1px solid #0f0;
+    color: #0f0;
+    padding: 12px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    text-transform: lowercase;
+    transition: all 0.2s;
+}
+
+.auth-buttons button:hover {
+    background: #0f0;
+    color: black;
+}
+
+.auth-buttons button.secondary {
+    border-color: #0f0;
+    opacity: 0.7;
+}
+
+.auth-buttons button.secondary:hover {
+    opacity: 1;
+}
+
+.auth-error {
+    margin-top: 15px;
+    color: #f00;
+    font-size: 12px;
+}
+
+.auth-error.hidden {
+    display: none;
+}
+
+/* User bar at top */
+.user-bar {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    font-size: 12px;
+    color: #0f0;
+}
+
+.user-bar.hidden {
+    display: none;
+}
+
+.user-bar button {
+    background: none;
+    border: 1px solid #0f0;
+    color: #0f0;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    text-transform: lowercase;
+    transition: all 0.2s;
+}
+
+.user-bar button:hover {
+    background: #0f0;
+    color: black;
+}
+
 /* Mobile phone adjustments */
 @media (max-width: 600px) {
     .welcome-text {
@@ -175,5 +338,11 @@ body {
 
     .upload-area {
         padding: 40px 20px;      /* Less padding on phones */
+    }
+
+    .user-bar {
+        top: 10px;
+        right: 10px;
+        font-size: 10px;
     }
 }

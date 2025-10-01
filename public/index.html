@@ -7,6 +7,42 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Auth overlay (hidden by default) -->
+    <div id="authOverlay" class="auth-overlay hidden">
+        <!-- Login form -->
+        <div id="loginBox" class="auth-box">
+            <h2>streamforge</h2>
+            <p id="loginMessage">login to continue</p>
+            <input type="email" id="loginEmail" placeholder="email" />
+            <input type="password" id="loginPassword" placeholder="password" />
+            <div class="auth-buttons">
+                <button id="loginSubmitBtn">login</button>
+                <button id="switchToRegisterBtn" class="secondary">register</button>
+            </div>
+            <div id="loginError" class="auth-error hidden"></div>
+        </div>
+
+        <!-- Register form -->
+        <div id="registerBox" class="auth-box hidden">
+            <h2>streamforge</h2>
+            <p>create account</p>
+            <input type="email" id="registerEmail" placeholder="email" />
+            <input type="password" id="registerPassword" placeholder="password" />
+            <input type="password" id="registerPasswordConfirm" placeholder="repeat password" />
+            <div class="auth-buttons">
+                <button id="registerSubmitBtn">register</button>
+                <button id="switchToLoginBtn" class="secondary">back to login</button>
+            </div>
+            <div id="registerError" class="auth-error hidden"></div>
+        </div>
+    </div>
+
+    <!-- User info bar (hidden when not logged in) -->
+    <div id="userBar" class="user-bar hidden">
+        <span id="userEmail"></span>
+        <button id="logoutBtn">logout</button>
+    </div>
+
     <div class="container">
         <!-- Main upload area -->
         <div class="upload-area" id="uploadArea">

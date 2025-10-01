@@ -1,0 +1,39 @@
+# Node modules - will be installed in container
+node_modules
+npm-debug.log
+
+# Local development files
+.env
+.env.local
+
+# Git
+.git
+.gitignore
+
+# Docker cache and runtime directories
+nginx/cache
+uploads/*
+!uploads/.gitkeep
+tmp/*
+!tmp/.gitkeep
+transcoded/*
+!transcoded/.gitkeep
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed in container)
+*.md
+!package.json
+context/
+
+# Test files
+*.test.js
+test/
