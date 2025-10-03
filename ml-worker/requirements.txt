@@ -1,0 +1,19 @@
+# Core ML framework
+torch>=2.0.0
+numpy>=1.24.0
+
+# Visualization
+matplotlib>=3.7.0
+
+# Testing (for our toy examples)
+pytest>=7.4.0
+
+# Audio processing (we'll add these later in Phase 5.2)
+# librosa>=0.10.0
+# openai-whisper>=20230314
+
+# Queue and storage (we'll add these later for production integration)
+# bullmq>=1.0.0
+# redis>=4.5.0
+# boto3>=1.26.0
+# supabase>=1.0.0
