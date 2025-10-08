@@ -9,3 +9,5 @@ uploads/*
 node_modules/.package-lock.json
 .env.local
 .env
+.venv
+pytorch-env
