@@ -1,5 +1,6 @@
 node_modules/.package-lock.json
 nginx/cache
+node_modules
 node_modules/*
 node_modules/.*
 transcoded/*
@@ -12,3 +13,6 @@ node_modules/.package-lock.json
 .venv
 pytorch-env
 pyrightconfig.json
+node_modules/.bin/mkdirp
+node_modules/.bin/uuid
+node_modules/.bin/which

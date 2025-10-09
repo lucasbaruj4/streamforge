@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
+import matplotlib.pyplot as plt
 
 import torch
 
@@ -93,12 +94,9 @@ def _build_sinusoidal_table(config: PositionalEncodingConfig) -> torch.Tensor:
     # Allocate final positional encoding table filled with zeros.
     pe = torch.zeros(config.max_len, config.d_model, dtype=config.dtype, device=device)
 
-    # TODO(human): Fill even columns with `torch.sin(angles)` and odd columns with
-    # `torch.cos(angles)`.  Remember that column 0 is even, column 1 is odd, etc.
-    # Hints:
-    #   pe[:, 0::2] = ...
-    #   pe[:, 1::2] = ...
-    raise NotImplementedError("Populate the positional encoding table using sin/cos")
+    pe[:, 0::2] = torch.sin(angles) 
+    pe[:, 1::2] = torch.cos(angles)
+    return pe
 
 
 def _angle_rates(
@@ -115,14 +113,15 @@ def _angle_rates(
     >>> even_indices = torch.arange(0, 4)
     >>> _angle_rates(even_indices, d_model=8, dtype=torch.float32, device=torch.device("cpu"))
     tensor([1.0000, 0.0313])
-    ```
+    ``` 
 
     TODO(human): implement the 10000 ** (2i / d_model) denominator described in
     the Transformer paper.  The returned tensor should have shape ``(d_model/2,)``
     so that broadcasting with the position column vector works naturally.
     """
 
-    raise NotImplementedError("Implement the angle rate computation per Vaswani et al. (2017)")
+
+    return 1 / (10000 ** (even_dim_indices / d_model))
 
 
 def add_positional_encoding(x: torch.Tensor, pe: torch.Tensor) -> torch.Tensor:
@@ -163,5 +162,11 @@ if __name__ == "__main__":
     print("Sample positional encoding (first 10 positions, 6 dims):")
     print(sample_pe)
 
-    # TODO(human): Plot heatmap of `sample_pe` using matplotlib to observe the
-    # sinusoidal patterns and verify neighbouring positions correlate smoothly.
+    # Plot Heatmap
+    plt.figure(figsize=(8,4))
+    plt.imshow(sample_pe.numpy(), aspect='auto', cmap='viridis')
+    plt.colorbar(label="PE value")
+    plt.xlabel("Embedding dimension")
+    plt.ylabel("Position")
+    plt.title("Positional Encoding (sinusoidal)")
+    plt.show()
