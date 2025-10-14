@@ -30,6 +30,8 @@ import torch.nn as nn
 from typing import Optional
 from dataclasses import dataclass
 
+from torch.nn.functional import multi_head_attention_forward
+
 # Import your completed components
 from multi_head_attention import MultiHeadAttention
 from feedforward import FeedForward
@@ -84,23 +86,13 @@ class TransformerBlock(nn.Module):
         self.d_model = d_model
         self.num_heads = num_heads
         self.d_ff = d_ff
+        self.attention = MultiHeadAttention(d_model, num_heads, dropout)
+        self.feedforward = FeedForward(d_model, d_ff, dropout, activation)
+     
+        self.norm1 = nn.LayerNorm(d_model)  # After attention
+        self.norm2 = nn.LayerNorm(d_model)  # After feedforward
         
-        # TODO(human): Initialize the attention mechanism
-        # Hint: Use your MultiHeadAttention class
-        self.attention = None
-        
-        # TODO(human): Initialize the feedforward network
-        # Hint: Use your FeedForward class
-        self.feedforward = None
-        
-        # TODO(human): Initialize layer normalization layers
-        # Hint: You need two LayerNorm layers - one after attention, one after FFN
-        # What dimension should they normalize over?
-        self.norm1 = None  # After attention
-        self.norm2 = None  # After feedforward
-        
-        # TODO(human): Initialize dropout for regularization
-        self.dropout = None
+        self.dropout = nn.Dropout(dropout)
 
     @classmethod
     def from_config(cls, config: TransformerBlockConfig) -> "TransformerBlock":
@@ -130,20 +122,11 @@ class TransformerBlock(nn.Module):
             Output tensor of shape (batch_size, seq_len, d_model)
         """
         
-        # TODO(human): Implement the attention sublayer
-        # 1. Apply multi-head attention to x
-        # 2. Add residual connection: x + attention_output
-        # 3. Apply layer normalization
-        # Hint: The pattern is: output = LayerNorm(x + Sublayer(x))
-        attention_output = None
-        normalized_attention = None
-        
-        # TODO(human): Implement the feedforward sublayer  
-        # 1. Apply feedforward network to normalized_attention
-        # 2. Add residual connection: normalized_attention + ffn_output
-        # 3. Apply layer normalization
-        ffn_output = None
-        final_output = None
+        attention_output = self.attention(x, x, x, mask)
+        normalized_attention = self.norm1(x + attention_output)
+       
+        ffn_output = self.feedforward(normalized_attention)
+        final_output = self.norm2(ffn_output + normalized_attention)
         
         return final_output
 
@@ -162,7 +145,7 @@ def visualize_transformer_block_flow(block: TransformerBlock, x: torch.Tensor) -
     
     with torch.no_grad():
         # Get intermediate representations
-        attention_output = block.attention(x)
+        attention_output = block.attention(x, x, x)
         residual1 = x + attention_output
         normalized1 = block.norm1(residual1)
         
@@ -261,5 +244,5 @@ if __name__ == "__main__":
     print("How to Visualize Block Flow:")
     print("="*60)
     print("# Visualize information flow through the block")
-    print("visualize_transformer_block_flow(block, x)")
+    visualize_transformer_block_flow(block, x)
     print("# See how attention and FFN transform representations!")

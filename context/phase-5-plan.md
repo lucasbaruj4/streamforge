@@ -7,8 +7,11 @@
 - Step 1.3: Multi-Head Attention (parallel heads with visualization)
 - Step 1.4: Feedforward Network (expand → activate → contract)
 
+**✅ COMPLETED:**
+- Step 1.5: Transformer Block (attention + FFN + residual connections)
+
 **🔄 IN PROGRESS:**
-- Step 1.5: Transformer Block (next priority)
+- Step 1.6: Full Transformer Architecture (next priority)
 
 **📋 REMAINING:**
 - Steps 1.6-1.7: Full Architecture, Training
