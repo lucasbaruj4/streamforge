@@ -236,10 +236,11 @@ StreamForge is a scalable video transcoding system that demonstrates enterprise-
 - ✅ **Positional Encoding**: Sinusoidal encoding with visualization
 - ✅ **Multi-Head Attention**: Parallel attention heads with head specialization visualization
 - ✅ **Head Specialization**: Demonstrated different heads learning different relationship patterns
+- ✅ **Feedforward Network**: Expand → Activate → Contract architecture with activation visualization
+- ✅ **FFN Visualization**: ReLU vs GELU activation pattern comparison
 
 **🔄 IN PROGRESS:**
-- Feedforward Network implementation
-- Transformer Block construction
+- Transformer Block construction (attention + FFN + residuals)
 - Full transformer architecture
 
 **📋 REMAINING DELIVERABLES:**

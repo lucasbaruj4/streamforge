@@ -41,7 +41,7 @@ class FeedForwardConfig:
     d_model: int
     d_ff: int
     dropout: float = 0.1
-    activation: str = "relu"  # "relu" or "gelu"
+    activation: str = "relu"  
 
     def __post_init__(self) -> None:
         if self.d_ff <= self.d_model:
@@ -84,15 +84,12 @@ class FeedForward(nn.Module):
         self.d_ff = d_ff
         self.activation_name = activation
         
-        # TODO(human): Create the two linear layers
-        # Layer 1: Expand from d_model to d_ff
-        self.linear1 = None  # TODO: nn.Linear(d_model, d_ff)
+        self.linear1 = nn.Linear(d_model, d_ff) 
         
-        # Layer 2: Contract from d_ff back to d_model
-        self.linear2 = None  # TODO: nn.Linear(d_ff, d_model)
+        self.linear2 = nn.Linear(d_ff, d_model)  
         
-        # TODO(human): Add dropout for regularization
-        self.dropout = None  # TODO: nn.Dropout(dropout)
+        
+        self.dropout = nn.Dropout(dropout)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -108,26 +105,19 @@ class FeedForward(nn.Module):
         torch.Tensor
             Output tensor of shape (batch_size, seq_len, d_model)
         """
-        # TODO(human): Step 1 - Expand dimension
-        # Project from d_model to d_ff (typically 4x larger)
-        expanded = None  # TODO: self.linear1(x)
         
-        # TODO(human): Step 2 - Apply activation function
-        # Choose between ReLU and GELU based on self.activation_name
+        expanded = self.linear1(x)
+        
         if self.activation_name == "relu":
-            activated = None  # TODO: F.relu(expanded)
+            activated = F.relu(expanded)  
         elif self.activation_name == "gelu":
-            activated = None  # TODO: F.gelu(expanded)
+            activated = F.gelu(expanded)  
         else:
             raise ValueError(f"Unknown activation: {self.activation_name}")
         
-        # TODO(human): Step 3 - Contract dimension
-        # Project from d_ff back to d_model
-        contracted = None  # TODO: self.linear2(activated)
+        contracted = self.linear2(activated)  
         
-        # TODO(human): Step 4 - Apply dropout
-        # Apply dropout for regularization
-        output = None  # TODO: self.dropout(contracted)
+        output = self.dropout(contracted)  
         
         return output
     
@@ -263,6 +253,8 @@ if __name__ == "__main__":
         # Test with different activations
         ffn_gelu = FeedForward(d_model=d_model, d_ff=d_ff, activation="gelu")
         output_gelu = ffn_gelu(x)
+        ffn_relu = FeedForward(d_model=d_model, d_ff=d_ff, activation="relu")
+        output_relu = ffn_relu(x)
         print(f"✅ GELU output shape: {output_gelu.shape}")
         
         # Test config-based construction
@@ -288,7 +280,7 @@ if __name__ == "__main__":
     print("How to Visualize FFN Patterns:")
     print("="*60)
     print("# Visualize activation patterns")
-    print("visualize_ffn_activations(ffn, x)")
+    visualize_ffn_activations(ffn, x)
     print("# Compare ReLU vs GELU")
-    print("compare_activations(ffn_relu, ffn_gelu, x)")
+    compare_activations(ffn_relu, ffn_gelu, x)
     print("# See how different positions get processed!")
