@@ -225,44 +225,50 @@ StreamForge is a scalable video transcoding system that demonstrates enterprise-
 - Anonymous upload database handling in worker
 
 ---
+### ✅ **Phase 5: Intelligence Layer – COMPLETED (Research Foundations)**
+**Completed: Week 9**
 
-### 🔄 Phase 5: Intelligence Layer - IN PROGRESS
-**Started: Week 9**
+**Learning Focus:** Understanding transformer-based architectures and Whisper’s internal design.
 
-**Learning Focus:** Transformer architecture from scratch, attention mechanisms, bridging AI research to production
+**Completed Work:**
+- ✅ Implemented scaled dot-product attention, positional encoding, multi-head attention, and feedforward layers  
+- ✅ Combined them into a working transformer block with residual connections  
+- ✅ Explored encoder-decoder structure and its relation to Whisper  
+- ✅ Visualized attention flow, head specialization, and positional encoding patterns  
 
-**✅ COMPLETED COMPONENTS:**
-- ✅ **Attention Mechanism**: Scaled dot-product attention with causal masking
-- ✅ **Positional Encoding**: Sinusoidal encoding with visualization
-- ✅ **Multi-Head Attention**: Parallel attention heads with head specialization visualization
-- ✅ **Head Specialization**: Demonstrated different heads learning different relationship patterns
-- ✅ **Feedforward Network**: Expand → Activate → Contract architecture with activation visualization
-- ✅ **FFN Visualization**: ReLU vs GELU activation pattern comparison
+**Outcome:**  
+This phase achieved its goal of *conceptual mastery*. We now understand how modern transformer-based speech models operate and can focus on **engineering and integration**, not raw model design.
 
-**✅ COMPLETED COMPONENTS:**
-- ✅ **Transformer Block**: Attention + FFN + residual connections with Post-LN architecture
-- ✅ **Block Visualization**: Information flow visualization through attention and FFN layers
+---
 
-**🔄 IN PROGRESS:**
-- Full transformer architecture (encoder-decoder)
+### 🔄 **Phase 5.5: Applied Intelligence Layer – IN PROGRESS**
+**New Focus:** Applying AI in production systems rather than constructing models from scratch.
 
-**📋 REMAINING DELIVERABLES:**
-- Auto-captioning using transformer model
-- Thumbnail generation at key frames
-- Video quality analysis
-- Content classification
+**Deliverables:**
+- **Whisper Integration:** Implement production-ready Whisper transcription pipeline (Python worker + Redis queue + MinIO).  
+- **Caption Generation:** Automatic SRT/WebVTT caption creation with language detection.  
+- **Frontend Integration:** Seamless caption display in video player using `<track>` element.  
+- **Analytics Dashboard:** Caption accuracy, audio quality analysis, and content summaries.  
+- **Optional Extensions:**  
+  - Embedding-based video search (semantic retrieval).  
+  - Thumbnail generation from key frames.  
+  - Caption editing interface for manual corrections.
 
 **Success Metrics:**
-- Caption accuracy > 80%
-- Meaningful thumbnail selection
-- Automated quality reports
-- Basic content categorization
+- Caption accuracy ≥ 90% for clear speech  
+- Processing time ≤ 1× video duration  
+- Multilingual caption support  
+- Reliable, GPU-ready ML service architecture  
 
-**Technical Requirements:**
-- ML model integration
-- GPU processing pipeline
-- Model serving infrastructure
-- Batch processing optimization
+**Technical Focus:**  
+AI system design, distributed ML job orchestration, data pipelines, and integration of pre-trained foundation models into production systems.
+
+---
+
+### ⚙️ **Updated Phase Sequence**
+- Phase 5 → *Completed: Research Foundations*  
+- Phase 5.5 → *In Progress: Applied Intelligence Layer*  
+- Next → Phase 6: Frontend Refinement
 
 ---
 
